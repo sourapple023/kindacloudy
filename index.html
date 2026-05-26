@@ -1,1 +1,639 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><title>Atmospheric OS</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:#050b16;color:white;font-family:Arial;overflow:hidden}canvas{position:fixed;inset:0;z-index:-1}.ui{padding:20px}.panel{background:rgba(255,255,255,.08);backdrop-filter:blur(20px);padding:20px;border-radius:25px;margin-bottom:20px}.hero{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}.core{width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,#ffd000,#ff7a00);box-shadow:0 0 100px orange;animation:pulse 6s infinite}.forecast,.hourly{display:flex;gap:10px;overflow:auto}.card{padding:15px;min-width:90px;border-radius:15px;background:rgba(255,255,255,.08)}@keyframes pulse{50%{transform:scale(1.05)}}</style></head><body><canvas id="bg"></canvas><div class="ui"><div class="panel hero"><div><h1>🌍 Atmospheric OS</h1><div id="loc">📍 Loading...</div><h1 id="temp">--°</h1><div id="condition"></div></div><div class="core"></div></div><div class="panel"><h2>📅 Forecast</h2><div id="forecast" class="forecast"></div></div><div class="panel"><h2>📊 Hourly</h2><div id="hourly" class="hourly"></div></div></div><script>const bg=document.getElementById("bg"),x=bg.getContext("2d");bg.width=innerWidth;bg.height=innerHeight;function a(){requestAnimationFrame(a);let g=x.createLinearGradient(0,0,0,innerHeight);g.addColorStop(0,"#0d2f70");g.addColorStop(1,"#64c8ff");x.fillStyle=g;x.fillRect(0,0,innerWidth,innerHeight)}a();async function load(lat,lon){let u=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&hourly=temperature_2m&daily=temperature_2m_max&timezone=auto`;let d=await fetch(u).then(r=>r.json());loc.innerText="📍 Current Location";temp.innerText=Math.round(d.current.temperature_2m)+"°";condition.innerText="Live atmosphere online";for(let i=0;i<7;i++)forecast.innerHTML+=`<div class='card'>${Math.round(d.daily.temperature_2m_max[i])}°</div>`;for(let i=0;i<12;i++)hourly.innerHTML+=`<div class='card'>${Math.round(d.hourly.temperature_2m[i])}°</div>`}navigator.geolocation.getCurrentPosition(p=>load(p.coords.latitude,p.coords.longitude));</script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🌍 Atmospheric OS</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
+
+body{
+
+font-family:Inter,Arial,sans-serif;
+overflow:hidden;
+background:#050b16;
+color:white;
+}
+
+canvas{
+
+position:fixed;
+inset:0;
+z-index:-2;
+
+}
+
+#particles{
+
+z-index:-1;
+
+}
+
+.ui{
+
+padding:25px;
+
+}
+
+.panel{
+
+background:rgba(255,255,255,.08);
+backdrop-filter:blur(20px);
+border:1px solid rgba(255,255,255,.08);
+
+border-radius:28px;
+
+padding:20px;
+margin-bottom:20px;
+
+box-shadow:
+0 0 40px rgba(0,0,0,.4);
+
+}
+
+.hero{
+
+display:flex;
+justify-content:space-between;
+align-items:center;
+flex-wrap:wrap;
+gap:30px;
+
+}
+
+.core{
+
+width:300px;
+height:300px;
+
+border-radius:50%;
+
+background:
+radial-gradient(
+circle,
+#ffd000,
+#ff7a00
+);
+
+box-shadow:
+0 0 100px orange,
+0 0 220px rgba(255,180,0,.5);
+
+animation:
+pulse 6s infinite;
+
+transition:2s;
+
+}
+
+@keyframes pulse{
+
+50%{
+
+transform:
+scale(1.06);
+
+}
+
+}
+
+.stats{
+
+display:grid;
+grid-template-columns:repeat(2,1fr);
+
+gap:12px;
+margin-top:20px;
+
+}
+
+.stat{
+
+padding:12px;
+
+border-radius:16px;
+
+background:
+rgba(255,255,255,.05);
+
+}
+
+.forecast,
+.hourly{
+
+display:flex;
+gap:12px;
+
+overflow:auto;
+
+padding-bottom:10px;
+
+}
+
+.card{
+
+min-width:100px;
+
+padding:16px;
+
+border-radius:18px;
+
+background:
+rgba(255,255,255,.08);
+
+transition:.5s;
+
+cursor:pointer;
+
+}
+
+.card:hover{
+
+transform:
+translateY(-8px)
+scale(1.05);
+
+background:
+rgba(255,255,255,.14);
+
+}
+
+.forecast::-webkit-scrollbar,
+.hourly::-webkit-scrollbar{
+
+display:none;
+
+}
+
+.temp{
+
+font-size:4rem;
+
+font-weight:bold;
+
+}
+
+.condition{
+
+font-size:1.3rem;
+
+opacity:.8;
+
+margin-top:8px;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<canvas id="bg"></canvas>
+<canvas id="particles"></canvas>
+
+<div class="ui">
+
+<div class="panel hero">
+
+<div>
+
+<h1>🌍 Atmospheric OS</h1>
+
+<div id="loc">
+📍 Loading...
+</div>
+
+<div id="temp" class="temp">
+--°F
+</div>
+
+<div id="condition" class="condition">
+Loading weather...
+</div>
+
+<div class="stats">
+
+<div class="stat">
+💧 Humidity
+<br>
+<span id="humidity">
+--
+</span>
+</div>
+
+<div class="stat">
+💨 Wind
+<br>
+<span id="wind">
+--
+</span>
+</div>
+
+<div class="stat">
+🌅 Sunrise
+<br>
+<span id="sun">
+--
+</span>
+</div>
+
+<div class="stat">
+🧠 Stability
+<br>
+<span id="predict">
+Analyzing...
+</span>
+</div>
+
+</div>
+
+</div>
+
+<div
+id="core"
+class="core">
+</div>
+
+</div>
+
+<div class="panel">
+
+<h2>
+📅 7 Day Forecast
+</h2>
+
+<br>
+
+<div
+id="forecast"
+class="forecast">
+</div>
+
+</div>
+
+<div class="panel">
+
+<h2>
+📊 Hourly Timeline
+</h2>
+
+<br>
+
+<div
+id="hourly"
+class="hourly">
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+const bg=
+document.getElementById("bg");
+
+const ctx=
+bg.getContext("2d");
+
+const p=
+document.getElementById("particles");
+
+const px=
+p.getContext("2d");
+
+bg.width=
+p.width=
+innerWidth;
+
+bg.height=
+p.height=
+innerHeight;
+
+
+let rain=[];
+
+for(
+let i=0;
+i<180;
+i++
+){
+
+rain.push({
+
+x:
+Math.random()*innerWidth,
+
+y:
+Math.random()*innerHeight,
+
+s:
+4+
+Math.random()*5
+
+});
+
+}
+
+
+function draw(){
+
+requestAnimationFrame(draw);
+
+let h=
+new Date()
+.getHours();
+
+let g=
+ctx.createLinearGradient(
+0,
+0,
+0,
+innerHeight
+);
+
+if(
+h>6 &&
+h<18
+){
+
+g.addColorStop(
+0,
+"#0d2f70"
+);
+
+g.addColorStop(
+1,
+"#64c8ff"
+);
+
+}
+
+else{
+
+g.addColorStop(
+0,
+"#030611"
+);
+
+g.addColorStop(
+1,
+"#17264d"
+);
+
+}
+
+ctx.fillStyle=g;
+
+ctx.fillRect(
+0,
+0,
+innerWidth,
+innerHeight
+);
+
+
+px.clearRect(
+0,
+0,
+innerWidth,
+innerHeight
+);
+
+px.strokeStyle=
+"rgba(180,220,255,.6)";
+
+
+rain.forEach(a=>{
+
+px.beginPath();
+
+px.moveTo(
+a.x,
+a.y
+);
+
+px.lineTo(
+a.x,
+a.y+10
+);
+
+px.stroke();
+
+a.y+=a.s;
+
+if(
+a.y>
+innerHeight
+){
+
+a.y=0;
+
+a.x=
+Math.random()
+*innerWidth;
+
+}
+
+});
+
+}
+
+draw();
+
+
+function label(c){
+
+if(c<=1)
+return "☀️ Mostly Sunny";
+
+if(c<=3)
+return "☁️ Cloudy";
+
+if(c<70)
+return "🌧 Rain";
+
+if(c<90)
+return "❄️ Snow";
+
+return "⚡ Storm";
+
+}
+
+
+function updateCore(c){
+
+let core=
+document.getElementById("core");
+
+if(c<=1){
+
+core.style.background=
+"radial-gradient(circle,#ffd000,#ff7a00)";
+
+core.style.boxShadow=
+"0 0 100px orange";
+
+}
+
+else if(c<70){
+
+core.style.background=
+"radial-gradient(circle,#5aa8ff,#173c8d)";
+
+core.style.boxShadow=
+"0 0 100px #4fa2ff";
+
+}
+
+else{
+
+core.style.background=
+"radial-gradient(circle,#a458ff,#2c145f)";
+
+core.style.boxShadow=
+"0 0 100px violet";
+
+}
+
+}
+
+
+
+async function load(
+lat,
+lon
+){
+
+let url=
+
+`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&hourly=temperature_2m&daily=temperature_2m_max,weather_code,sunrise&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto`;
+
+
+let d=
+await fetch(url)
+.then(r=>r.json());
+
+loc.innerText=
+"📍 Current Location";
+
+temp.innerText=
+Math.round(
+d.current.temperature_2m
+)+"°F";
+
+condition.innerText=
+label(
+d.current.weather_code
+);
+
+humidity.innerText=
+d.current.relative_humidity_2m
++"%";
+
+wind.innerText=
+d.current.wind_speed_10m
++" mph";
+
+sun.innerText=
+d.daily.sunrise[0]
+.split("T")[1];
+
+predict.innerText=
+(
+Math.random()*100
+).toFixed(0)
++"% Stable";
+
+
+updateCore(
+d.current.weather_code
+);
+
+
+forecast.innerHTML="";
+
+for(
+let i=0;
+i<7;
+i++
+){
+
+forecast.innerHTML+=`
+
+<div class='card'>
+
+<b>
+
+${new Date(
+d.daily.time[i]
+).toLocaleDateString(
+[],
+{
+weekday:'short'
+}
+)}
+
+</b>
+
+<br><br>
+
+${Math.round(
+d.daily.temperature_2m_max[i]
+)}°F
+
+</div>
+
+`;
+
+}
+
+
+hourly.innerHTML="";
+
+for(
+let i=0;
+i<12;
+i++
+){
+
+hourly.innerHTML+=`
+
+<div class='card'>
+
+${Math.round(
+d.hourly.temperature_2m[i]
+)}°F
+
+</div>
+
+`;
+
+}
+
+}
+
+
+navigator.geolocation
+.getCurrentPosition(
+
+p=>load(
+
+p.coords.latitude,
+p.coords.longitude
+
+)
+
+);
+
+</script>
+
+</body>
+</html>
