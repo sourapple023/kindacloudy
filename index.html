@@ -1,0 +1,197 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Neural Weather V2</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;font-family:Arial;background:#08111d;color:white;overflow:hidden;transition:2s}
+canvas{position:fixed;inset:0;z-index:-1}
+.ui{padding:20px}
+.glass{
+background:rgba(255,255,255,.08);
+backdrop-filter:blur(18px);
+border-radius:25px;
+padding:18px;
+margin:15px;
+}
+input{
+width:250px;padding:12px;border-radius:20px;border:none;
+background:rgba(255,255,255,.2);color:white;
+}
+.forecast,.hourly{display:flex;gap:10px;overflow:auto}
+.card{
+padding:15px;min-width:90px;border-radius:18px;
+background:rgba(255,255,255,.08);
+cursor:pointer;transition:.6s;
+}
+.card:hover{transform:translateY(-8px) scale(1.05)}
+.line{
+height:100px;display:flex;align-items:flex-end;gap:10px;
+}
+.bar{
+width:20px;background:white;border-radius:8px;
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+
+<div class="ui">
+<div class="glass">
+<h1>🧠 Neural Weather V2</h1>
+<input id="city" placeholder="Search city...">
+<button onclick="searchCity()">🔍</button>
+<div id="loc"></div>
+<h2 id="temp">--°</h2>
+<div id="cond"></div>
+<div id="sun"></div>
+</div>
+
+<div class="glass">
+<h2>📅 7 Day Forecast</h2>
+<div class="forecast" id="forecast"></div>
+</div>
+
+<div class="glass">
+<h2>📊 Hourly Timeline</h2>
+<div class="hourly" id="hourly"></div>
+<div class="line" id="graph"></div>
+</div>
+</div>
+
+<script>
+const c=bg;
+const x=c.getContext("2d");
+resize();
+onresize=resize;
+
+let mode="clear";
+let rain=[];
+let snow=[];
+let lightning=0;
+
+for(let i=0;i<150;i++){
+rain.push({x:Math.random()*innerWidth,y:Math.random()*innerHeight,s:4+Math.random()*6})
+snow.push({x:Math.random()*innerWidth,y:Math.random()*innerHeight,s:1+Math.random()*4})
+}
+
+function resize(){c.width=innerWidth;c.height=innerHeight}
+
+function draw(){
+requestAnimationFrame(draw);
+
+let h=(new Date()).getHours();
+
+let g=x.createLinearGradient(0,0,0,c.height);
+
+if(h>6 && h<18){
+g.addColorStop(0,"#2f75ff");
+g.addColorStop(1,"#8bd9ff");
+}else{
+g.addColorStop(0,"#020611");
+g.addColorStop(1,"#131f3d");
+}
+
+x.fillStyle=g;
+x.fillRect(0,0,c.width,c.height);
+
+if(mode==="rain"||mode==="storm"){
+x.strokeStyle="rgba(180,220,255,.7)";
+rain.forEach(p=>{
+x.beginPath();
+x.moveTo(p.x,p.y);
+x.lineTo(p.x,p.y+10);
+x.stroke();
+p.y+=p.s;
+if(p.y>innerHeight){p.y=0;p.x=Math.random()*innerWidth}
+});
+}
+
+if(mode==="snow"){
+x.fillStyle="white";
+snow.forEach(p=>{
+x.beginPath();
+x.arc(p.x,p.y,p.s,0,6.28);
+x.fill();
+p.y+=1;
+p.x+=Math.sin(p.y*.02);
+if(p.y>innerHeight)p.y=0;
+});
+}
+
+if(mode==="storm"&&Math.random()<0.008){
+lightning=10;
+}
+
+if(lightning>0){
+x.fillStyle="rgba(255,255,255,.3)";
+x.fillRect(0,0,innerWidth,innerHeight);
+lightning--;
+}
+}
+
+draw();
+
+async function weather(lat,lon,name){
+let url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&hourly=temperature_2m&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,weather_code&timezone=auto`;
+let d=await fetch(url).then(r=>r.json());
+
+loc.innerText=name;
+temp.innerText=Math.round(d.current.temperature_2m)+"°";
+cond.innerText="Weather code: "+d.current.weather_code;
+
+sun.innerText="🌅 "+d.daily.sunrise[0].split("T")[1]+" | 🌙 "+d.daily.sunset[0].split("T")[1];
+
+forecast.innerHTML="";
+for(let i=0;i<7;i++){
+let e=document.createElement("div");
+e.className="card";
+e.innerHTML=`
+<b>${new Date(d.daily.time[i]).toLocaleDateString(undefined,{weekday:"short"})}</b><br>
+${Math.round(d.daily.temperature_2m_max[i])}°
+`;
+e.onclick=()=>setMode(d.daily.weather_code[i]);
+forecast.appendChild(e);
+}
+
+hourly.innerHTML="";
+graph.innerHTML="";
+
+for(let i=0;i<12;i++){
+let card=document.createElement("div");
+card.className="card";
+card.innerHTML=`${Math.round(d.hourly.temperature_2m[i])}°`;
+hourly.appendChild(card);
+
+let bar=document.createElement("div");
+bar.className="bar";
+bar.style.height=(d.hourly.temperature_2m[i]*1.5)+"px";
+graph.appendChild(bar);
+}
+
+setMode(d.current.weather_code);
+}
+
+function setMode(code){
+if(code<3) mode="clear";
+else if(code<70) mode="rain";
+else if(code<85) mode="snow";
+else mode="storm";
+}
+
+async function searchCity(){
+let q=city.value;
+let r=await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+q).then(a=>a.json());
+let c=r.results[0];
+weather(c.latitude,c.longitude,c.name);
+}
+
+navigator.geolocation.getCurrentPosition(p=>{
+weather(p.coords.latitude,p.coords.longitude,"📍 Current Location")
+});
+</script>
+</body>
+</html>
